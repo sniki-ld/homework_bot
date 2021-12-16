@@ -58,7 +58,7 @@ def get_api_answer(current_timestamp):
         if response.status_code != requests.codes.ok:
             raise IncorrectApi('Эндпоинт'
                                ' https://practicum.yandex.ru/api/'
-                               'user_api/homework_statuses/111'
+                               'user_api/homework_statuses/'
                                ' недоступен.')
     except requests.exceptions.RequestException as e:
         logger_homework.critical(f'Ошибка при выполнении запроса: {e}')
@@ -108,9 +108,7 @@ def check_tokens():
         name_variable = variables[key_var]
         try:
             if key_var is None:
-                raise NoEnvVariables(f'Отсутствуют обязательные'
-                                     f' {name_variable}'
-                                     f' переменные окружения')
+                logger_homework.critical(f'Переменная окружения {name_variable}')
         except NoEnvVariables as e:
             logger_homework.critical(f'Отсутствуют'
                                      f' обязательные'
@@ -124,17 +122,10 @@ def check_tokens():
 def main():
     """Основная логика работы бота."""
     logger_homework.debug('Запуск бота.')
-    try:
-        if TELEGRAM_TOKEN is None:
-            raise NoEnvVariables('Отсутствует'
-                                 ' обязательная'
-                                 ' переменная окружения: "TELEGRAM_TOKEN".'
-                                 'Программа принудительно остановлена.')
-    except NoEnvVariables as e:
-        logger_homework.critical(f'{e}')
 
     bot = Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time()) - 30*24*60*60
+    current_timestamp = 0
+
     is_error_shown = False
 
     while True:
