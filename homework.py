@@ -134,14 +134,12 @@ def main():
         logger_homework.critical(f'{e}')
 
     bot = Bot(token=TELEGRAM_TOKEN)
-    # current_timestamp = int(time.time())
-    current_timestamp = 0
+    current_timestamp = int(time.time()) - 30*24*60*60
     is_error_shown = False
 
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            logger_homework.info('Отправка запроса к API')
             if response.get('homeworks'):
                 message = parse_status(
                     response.get('homeworks')[0]
