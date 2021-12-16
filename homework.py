@@ -124,7 +124,7 @@ def main():
     logger_homework.debug('Запуск бота.')
 
     bot = Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = 0
+    current_timestamp = int(time.time())
 
     is_error_shown = False
 
