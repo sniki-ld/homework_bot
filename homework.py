@@ -50,7 +50,7 @@ def send_message(bot, message):
 
 def get_api_answer(current_timestamp):
     """Отправляет GET-запрос к эндпоинту url API Практикум.Домашка."""
-    timestamp = current_timestamp or int(time.time())
+    timestamp = current_timestamp
     params = {'from_date': timestamp}
     logger_homework.info('Отправка запроса к API')
     response = requests.get(ENDPOINT, headers=HEADERS, params=params)
@@ -134,13 +134,14 @@ def main():
         logger_homework.critical(f'{e}')
 
     bot = Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time())
-
+    # current_timestamp = int(time.time())
+    current_timestamp = 0
     is_error_shown = False
 
     while True:
         try:
             response = get_api_answer(current_timestamp)
+            logger_homework.info('Отправка запроса к API')
             if response.get('homeworks'):
                 message = parse_status(
                     response.get('homeworks')[0]
