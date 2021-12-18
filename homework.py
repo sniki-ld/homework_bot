@@ -2,13 +2,14 @@ import logging
 import os
 import sys
 import time
+from logging.handlers import RotatingFileHandler
 
 import requests
 import telegram
 from dotenv import load_dotenv
 from telegram import Bot
 
-from exceptions import IncorrectApi, NoEnvVariables
+from exceptions import IncorrectApi, ListTypeError
 
 load_dotenv()
 
@@ -26,58 +27,63 @@ HOMEWORK_STATUSES = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
-logger_homework = logging.getLogger(__name__)
-logger_homework.setLevel(logging.DEBUG)
-handler = logging.StreamHandler(sys.stdout)
-logger_homework.addHandler(handler)
+logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.DEBUG)
+
+c_handler = logging.StreamHandler(sys.stdout)
+handler = RotatingFileHandler('my_logger.log', maxBytes=50000000, backupCount=5)
+
+logger.addHandler(handler)
+logger.addHandler(c_handler)
 
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s %(funcName)s- %(message)s'
 )
-
 handler.setFormatter(formatter)
+c_handler.setFormatter(formatter)
 
 
 def send_message(bot, message):
     """Отправляет сообщение в Telegram с помощью телеграмм-бота."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        logger_homework.info(f'Отправлено сообщение"{message}".')
+        logger.info(f'Отправлено сообщение"{message}".')
     except telegram.error.TelegramError as e:
-        logger_homework.error(f'Ошибка при отправке'
-                              f' сообщения в Telegram : {e}')
+        logger.error(f'Ошибка при отправке'
+                     f' сообщения в Telegram : {e}')
 
 
 def get_api_answer(current_timestamp):
     """Отправляет GET-запрос к эндпоинту url API Практикум.Домашка."""
     timestamp = current_timestamp
     params = {'from_date': timestamp}
-    logger_homework.info('Отправка запроса к API')
-    response = requests.get(ENDPOINT, headers=HEADERS, params=params)
     try:
-        if response.status_code != requests.codes.ok:
+        res_api = requests.get(ENDPOINT, headers=HEADERS, params=params)
+        if res_api.status_code != requests.codes.ok:
             raise IncorrectApi('Эндпоинт'
                                ' https://practicum.yandex.ru/api/'
                                'user_api/homework_statuses/'
                                ' недоступен.')
     except requests.exceptions.RequestException as e:
-        logger_homework.critical(f'Ошибка при выполнении запроса: {e}')
+        logger.critical(f'Ошибка при выполнении запроса: {e}')
 
-    response = response.json()
+    try:
+        response = res_api.json()
+    except ValueError as e:
+        logger.error(f'Десериализованные данные не являются допустимым документом JSON {e}')
+
     if response:
-        logger_homework.info(f'Получен успешный ответ API {response}')
+        logger.info(f'Получен успешный ответ API {response}')
 
     return response
 
 
 def check_response(response):
-    """Провереряет доступность переменных окружения."""
+    """Провереряет ответ API на корректность."""
     if 'homeworks' in response:
-        try:
-            if not isinstance(response['homeworks'], list):
-                raise Exception('Не верный тип значения')
-        except TypeError as e:
-            logger_homework.error(f'{e}')
+        if not isinstance(response['homeworks'], list):
+            raise ListTypeError(logger.error(f'Значение не является типом "list"'))
 
     homework = response['homeworks']
     return homework
@@ -85,14 +91,14 @@ def check_response(response):
 
 def parse_status(homework):
     """Вывод статуса конкретной домашней работы."""
-    logger_homework.info('Вывод статуса домашней работы')
+    logger.info('Вывод статуса домашней работы')
     homework_name = homework['homework_name']
     homework_status = homework['status']
 
     if homework_status in HOMEWORK_STATUSES:
         verdict = HOMEWORK_STATUSES[homework_status]
     else:
-        raise Exception(logger_homework.error('Статус не определен!'))
+        raise Exception(logger.error('Статус не определен!'))
 
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
@@ -104,29 +110,22 @@ def check_tokens():
         TELEGRAM_TOKEN: 'TELEGRAM_TOKEN',
         TELEGRAM_CHAT_ID: 'TELEGRAM_CHAT_ID'
     }
+
     for key_var in variables.keys():
         name_variable = variables[key_var]
-        try:
-            if key_var is None:
-                logger_homework.critical(f'Переменная окружения {name_variable}')
-        except NoEnvVariables as e:
-            logger_homework.critical(f'Отсутствуют'
-                                     f' обязательные'
-                                     f' {name_variable}'
-                                     f' переменные окружения {e}')
+        if key_var is None:
+            logger.critical(f'Отсутствуют обязательные {name_variable} переменные окружения')
             return False
-
-        return True
+        else:
+            return True
 
 
 def main():
     """Основная логика работы бота."""
-    logger_homework.debug('Запуск бота.')
-
+    logger.debug('Запуск бота')
     bot = Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
-
-    is_error_shown = False
+    error_string = None
 
     while True:
         try:
@@ -140,13 +139,13 @@ def main():
             time.sleep(RETRY_TIME)
 
         except Exception as e:
-            logger_homework.error(f'Сбой в работе программы: {e}')
-            if not is_error_shown:
+            logger.error(f'Сбой в работе программы: {e}')
+            if f'{e}' != error_string:
                 send_message(bot, message=f'{e}')
-                is_error_shown = True
+                error_string = f'{e}'
             time.sleep(RETRY_TIME)
         else:
-            is_error_shown = False
+            error_string = None
 
 
 if __name__ == '__main__':

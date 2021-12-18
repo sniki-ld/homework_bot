@@ -2,6 +2,5 @@ class IncorrectApi(Exception):
     pass
 
 
-class NoEnvVariables(Exception):
+class ListTypeError(Exception):
     pass
-
