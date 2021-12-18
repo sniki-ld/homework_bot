@@ -32,7 +32,9 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 c_handler = logging.StreamHandler(sys.stdout)
-handler = RotatingFileHandler('my_logger.log', maxBytes=50000000, backupCount=5)
+handler = RotatingFileHandler('my_logger.log',
+                              maxBytes=50000000,
+                              backupCount=5)
 
 logger.addHandler(handler)
 logger.addHandler(c_handler)
@@ -71,7 +73,8 @@ def get_api_answer(current_timestamp):
     try:
         response = res_api.json()
     except ValueError as e:
-        logger.error(f'Десериализованные данные не являются допустимым документом JSON {e}')
+        logger.error(f'Десериализованные данные'
+                     f' не являются допустимым документом JSON {e}')
 
     if response:
         logger.info(f'Получен успешный ответ API {response}')
@@ -83,7 +86,8 @@ def check_response(response):
     """Провереряет ответ API на корректность."""
     if 'homeworks' in response:
         if not isinstance(response['homeworks'], list):
-            raise ListTypeError(logger.error(f'Значение не является типом "list"'))
+            raise ListTypeError(logger.error(
+                'Значение не является типом "list"'))
 
     homework = response['homeworks']
     return homework
@@ -114,7 +118,8 @@ def check_tokens():
     for key_var in variables.keys():
         name_variable = variables[key_var]
         if key_var is None:
-            logger.critical(f'Отсутствуют обязательные {name_variable} переменные окружения')
+            logger.critical(f'Отсутствуют обязательные'
+                            f' {name_variable} переменные окружения')
             return False
         else:
             return True
