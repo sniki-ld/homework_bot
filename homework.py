@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -9,7 +10,7 @@ import telegram
 from dotenv import load_dotenv
 from telegram import Bot
 
-from exceptions import IncorrectApi, ListTypeError
+from exceptions import ListTypeError, StatusError
 
 load_dotenv()
 
@@ -33,7 +34,7 @@ logger.setLevel(logging.DEBUG)
 
 c_handler = logging.StreamHandler(sys.stdout)
 handler = RotatingFileHandler('my_logger.log',
-                              maxBytes=50000000,
+                              maxBytes=50_000_000,
                               backupCount=5)
 
 logger.addHandler(handler)
@@ -63,31 +64,28 @@ def get_api_answer(current_timestamp):
     try:
         res_api = requests.get(ENDPOINT, headers=HEADERS, params=params)
         if res_api.status_code != requests.codes.ok:
-            raise IncorrectApi('Эндпоинт'
-                               ' https://practicum.yandex.ru/api/'
-                               'user_api/homework_statuses/'
-                               ' недоступен.')
+            res_api.raise_for_status()
     except requests.exceptions.RequestException as e:
         logger.critical(f'Ошибка при выполнении запроса: {e}')
 
     try:
         response = res_api.json()
-    except ValueError as e:
+    except json.JSONDecodeError as e:
         logger.error(f'Десериализованные данные'
                      f' не являются допустимым документом JSON {e}')
 
     if response:
         logger.info(f'Получен успешный ответ API {response}')
-
     return response
 
 
 def check_response(response):
     """Провереряет ответ API на корректность."""
-    if 'homeworks' in response:
-        if not isinstance(response['homeworks'], list):
-            raise ListTypeError(logger.error(
-                'Значение не является типом "list"'))
+    if type(response) is dict:
+        if 'homeworks' in response:
+            if not isinstance(response['homeworks'], list):
+                raise ListTypeError('Ошибка типа объекта')
+            logger.error('Объект не является типом "list"')
 
     homework = response['homeworks']
     return homework
@@ -102,7 +100,7 @@ def parse_status(homework):
     if homework_status in HOMEWORK_STATUSES:
         verdict = HOMEWORK_STATUSES[homework_status]
     else:
-        raise Exception(logger.error('Статус не определен!'))
+        raise StatusError('Статус не определен!')
 
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
@@ -145,9 +143,9 @@ def main():
 
         except Exception as e:
             logger.error(f'Сбой в работе программы: {e}')
-            if f'{e}' != error_string:
-                send_message(bot, message=f'{e}')
-                error_string = f'{e}'
+            if str(e) != error_string:
+                send_message(bot, message=str(e))
+                error_string = str(e)
             time.sleep(RETRY_TIME)
         else:
             error_string = None

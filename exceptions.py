@@ -1,6 +1,6 @@
-class IncorrectApi(Exception):
+class ListTypeError(Exception):
     pass
 
 
-class ListTypeError(Exception):
+class StatusError(Exception):
     pass
