@@ -58,6 +58,10 @@ def send_message(bot, message):
 
 
 def get_api_answer(current_timestamp):
+    # При попытке обращения к эндпойнту могут возникнуть разные исключения, не только http.
+    # Например, таймаут подключения. Все это тоже нужно отлавливать.
+    # А ответ может иметь статусы, отличные от 200 (HTTP.OK), но при этом не относящиеся к ошибкам
+    # и если это не проверить - выполнение кода может продолжиться с неверным данными.
     """Отправляет GET-запрос к эндпоинту url API Практикум.Домашка."""
     timestamp = current_timestamp
     params = {'from_date': timestamp}
@@ -107,15 +111,30 @@ def parse_status(homework):
 
 def check_tokens():
     """Провереряет доступность переменных окружения."""
+    # variables = {
+    #     PRACTICUM_TOKEN: 'PRACTICUM_TOKEN',
+    #     TELEGRAM_TOKEN: 'TELEGRAM_TOKEN',
+    #     TELEGRAM_CHAT_ID: 'TELEGRAM_CHAT_ID'
+    # }
+    #
+    # for key_var in variables.keys():
+    #     name_variable = variables[key_var]
+    #     if key_var is None:
+    #         logger.critical(f'Отсутствуют обязательные'
+    #                         f' {name_variable} переменные окружения')
+    #         return False
+    #     else:
+    #         return True
+
     variables = {
-        PRACTICUM_TOKEN: 'PRACTICUM_TOKEN',
-        TELEGRAM_TOKEN: 'TELEGRAM_TOKEN',
-        TELEGRAM_CHAT_ID: 'TELEGRAM_CHAT_ID'
+        'PRACTICUM_TOKEN': PRACTICUM_TOKEN,
+        'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
+        'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID
     }
 
-    for key_var in variables.keys():
-        name_variable = variables[key_var]
-        if key_var is None:
+    for key_var, val in variables.items():
+        name_variable = val
+        if val is None:
             logger.critical(f'Отсутствуют обязательные'
                             f' {name_variable} переменные окружения')
             return False
